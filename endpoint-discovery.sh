@@ -355,7 +355,9 @@ say "Live URLs (not 404): $(wc -l < "$OUT_DIR/live_urls.txt")"
 step "7. Interesting endpoints"
 # ---------------------------------------------------------------------------
 flag() {
-  local label="$1" pattern="$2" file="$OUT_DIR/interesting_${label}.txt"
+  local label="$1"
+  local pattern="$2"
+  local file="$OUT_DIR/interesting_${label}.txt"
   grep -Ei "$pattern" "$OUT_DIR/live_urls.txt" | sort -u > "$file"
   local n; n="$(wc -l < "$file")"
   if (( n > 0 )); then
@@ -381,7 +383,7 @@ flag server_errors '^5[0-9][0-9] '
 flag forbidden    '^(401|403) '
 
 # Unique parameter names (handy for testing)
-grep -oE '[?&][A-Za-z0-9_\[\]-]+=' "$OUT_DIR/all_urls.txt" | tr -d '?&=' | sort | uniq -c | sort -rn > "$OUT_DIR/parameters.txt"
+grep -oE '[?&][][A-Za-z0-9_-]+=' "$OUT_DIR/all_urls.txt" | tr -d '?&=' | sort | uniq -c | sort -rn > "$OUT_DIR/parameters.txt"
 say "Unique parameter names: $(wc -l < "$OUT_DIR/parameters.txt") (see parameters.txt)"
 
 # ---------------------------------------------------------------------------
