@@ -48,3 +48,16 @@ done
 Exit code is `3` if any HIGH finding is reported, so it can gate a CI job.
 
 Requirements: `bash`, `curl`, `openssl`, `dig` (optional). Results are saved in `reports/`, which is git ignored.
+
+# endpoint-discovery
+
+Maps as many endpoints as possible for a domain: subdomains (crt.sh, subfinder), archived URLs (Wayback, OTX, or gau), a crawl that also mines JavaScript (built in, or katana), and path guessing (built in list, or ffuf). It then checks which URLs are live and groups the interesting ones (admin, auth, API, backups, PHP files, uploads, redirect and file parameters, ID parameters, 5xx, 401/403).
+
+```bash
+./endpoint-discovery.sh yourdomain.com
+SUBS=0 BRUTE=0 ./endpoint-discovery.sh yourdomain.com      # quieter
+RUN_BLACKBOX=1 ./endpoint-discovery.sh yourdomain.com      # also run blackbox-scan.sh on every live host
+```
+
+Options: `SUBS`, `BRUTE`, `WORDLIST`, `RATE` (req/s, default 10), `MAX_ARCHIVE`, `MAX_CHECK` (default 500), `RUN_BLACKBOX`, `OUT_DIR`.
+Works with only bash and curl; gau, katana, httpx, ffuf and subfinder are used automatically when installed.
