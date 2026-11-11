@@ -11,6 +11,7 @@
 # Usage:
 #   ./peek.sh https://develop.example.com/signin.php
 #   ./peek.sh https://develop.example.com/signin.php text   # text only
+#   ./peek.sh https://develop.example.com/properties/ chain   # follow redirects, show each hop
 #
 # Options (environment variables):
 #   OUT_DIR    Where to save output (default: ./peek)
@@ -20,7 +21,7 @@
 set -uo pipefail
 
 URL="${1:-}"
-MODE="${2:-all}"            # all | text | raw
+MODE="${2:-all}"            # all | text | raw | chain
 if [[ -z "$URL" ]]; then
   echo "Usage: ./peek.sh <url> [text|raw]"
   exit 1
@@ -38,6 +39,34 @@ CURL=(curl -s -k --max-time "$TIMEOUT" -A "$UA" --max-redirs 0)
 [[ -n "${COOKIE:-}" ]] && CURL+=(-H "Cookie: ${COOKIE}")
 
 if [[ -t 1 ]]; then B=$'\e[34m'; Y=$'\e[33m'; G=$'\e[32m'; R=$'\e[0m'; else B=""; Y=""; G=""; R=""; fi
+
+# chain mode: walk every redirect, show status + body size at each hop
+if [[ "$MODE" == "chain" ]]; then
+  cur="$URL"; hop=0
+  while :; do
+    hop=$((hop+1))
+    "${CURL[@]}" -D "$OUT_DIR/.h" -o "$OUT_DIR/.b" "$cur"
+    code="$(awk 'NR==1{print $2}' "$OUT_DIR/.h")"
+    loc="$(tr -d '\r' < "$OUT_DIR/.h" | grep -i '^location:' | head -1 | cut -d: -f2- | sed 's/^ //')"
+    sz="$(wc -c < "$OUT_DIR/.b" | tr -d ' ')"
+    echo "${B}[hop $hop]${R} $code  ${sz}b  $cur"
+    if (( sz > 0 )); then
+      echo "    ${Y}body:${R} $(sed -E 's/<[^>]+>//g' "$OUT_DIR/.b" | tr -s ' \n' ' ' | sed 's/^ //' | cut -c1-200)"
+    fi
+    if [[ -n "$loc" && $hop -lt 10 ]]; then
+      case "$loc" in
+        http*) cur="$loc" ;;
+        /*)    cur="$(echo "$cur" | sed -E 's#(https?://[^/]+).*#\1#')$loc" ;;
+        *)     cur="$(dirname "$cur")/$loc" ;;
+      esac
+    else
+      echo "${G}Final page reached at hop $hop.${R}"
+      break
+    fi
+  done
+  rm -f "$OUT_DIR/.h" "$OUT_DIR/.b"
+  exit 0
+fi
 
 # Fetch once, keep headers and body separately, do NOT follow the redirect
 "${CURL[@]}" -D "$HDR" -o "$BODY" "$URL"
